@@ -88,44 +88,57 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	// copy arguments forward on an even stack
 	MOVQ	DI, AX		// argc
 	MOVQ	SI, BX		// argv
+
+    // 申请栈空间39字节 (4*8+7)
 	SUBQ	$(4*8+7), SP		// 2args 2auto
-	ANDQ	$~15, SP
-	MOVQ	AX, 16(SP)
-	MOVQ	BX, 24(SP)
+
+	// 地址对齐(2字节)
+    ANDQ	$~15, SP
+	MOVQ	AX, 16(SP) // 命令行参数数量
+	MOVQ	BX, 24(SP) // 命令行参数
 
 	// create istack out of the given (operating system) stack.
 	// _cgo_init may update stackguard.
+    // 初始化 runtime.g0
 	MOVQ	$runtime·g0(SB), DI
-	LEAQ	(-64*1024+104)(SP), BX
-	MOVQ	BX, g_stackguard0(DI)
-	MOVQ	BX, g_stackguard1(DI)
-	MOVQ	BX, (g_stack+stack_lo)(DI)
-	MOVQ	SP, (g_stack+stack_hi)(DI)
+	LEAQ	(-64*1024+104)(SP), BX // 栈字节大小限制??
+	MOVQ	BX, g_stackguard0(DI) // 设置 runtime.g0.stackguard0
+	MOVQ	BX, g_stackguard1(DI) // 设置 runtime.g0.stackguard1
+	MOVQ	BX, (g_stack+stack_lo)(DI) // 设置 runtime.g0.stack.lo
+	MOVQ	SP, (g_stack+stack_hi)(DI) // 设置 runtime.g0.stack.hi -> 栈顶地址
 
 	// find out information about the processor we're on
-	MOVL	$0, AX
-	CPUID
+	MOVL	$0, AX // 寄存器RAX清零, 为CPUID指令设置参数
+	CPUID // EAX=0, 获取处理器vendor_id, 将结果存储在EAX, EBX, EDX, ECX中
 	MOVL	AX, SI
-	CMPL	AX, $0
-	JE	nocpuinfo
+	CMPL	AX, $0 // 与 输入值0 比较处理器信息
+	JE	nocpuinfo // 若获取处理器信息为输入值0, 跳转到nocpuinfo
 
 	// Figure out how to serialize RDTSC.
 	// On Intel processors LFENCE is enough. AMD requires MFENCE.
 	// Don't know about the rest, so let's do MFENCE.
+    // 通过vendor_id比较是否为Intel处理器(GenuineIntel)
+    /*
+        小端模式
+        BX: 0x756E6547 => Genu => 0x47(G) 0x64(e) 0x6E(n) 0x75(u)
+        DX: 0x49656E69 => ineI => 0x69(i) 0x6E(n) 0X65(e) 0x49(I)
+        CX: 0x6C65746E => ntel => 0x6E(n) 0x74(t) 0x65(e) 0x6C(l)
+
+    */
 	CMPL	BX, $0x756E6547  // "Genu"
-	JNE	notintel
+	JNE	notintel // 若非intel处理器, 跳转到notintel
 	CMPL	DX, $0x49656E69  // "ineI"
-	JNE	notintel
+	JNE	notintel // 若非intel处理器, 跳转到notintel
 	CMPL	CX, $0x6C65746E  // "ntel"
-	JNE	notintel
-	MOVB	$1, runtime·isIntel(SB)
-	MOVB	$1, runtime·lfenceBeforeRdtsc(SB)
+	JNE	notintel // 若非intel处理器, 跳转到notintel
+	MOVB	$1, runtime·isIntel(SB) // 设置 runtime.isIntel -> true
+	MOVB	$1, runtime·lfenceBeforeRdtsc(SB) // 设置 runtime.lfenceBeforeRdtsc -> true
 notintel:
 
 	// Load EAX=1 cpuid flags
 	MOVL	$1, AX
-	CPUID
-	MOVL	AX, runtime·processorVersionInfo(SB)
+	CPUID // EAX=1, 获取处理器基本信息和扩展信息, EAX(级别, 型号, 步长), ECX(扩展信息), EBX(保留), EDX(特征信息)
+	MOVL	AX, runtime·processorVersionInfo(SB) // 设置 runtime.processorVersionInfo -> CPU基本信息
 
 nocpuinfo:
 	// if there is an _cgo_init, call it.
