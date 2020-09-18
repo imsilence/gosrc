@@ -99,7 +99,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 
 	// create istack out of the given (operating system) stack.
 	// _cgo_init may update stackguard.
-    // 初始化 runtime.g0
+    // 初始化 runtime.g0(runtime/proc.go)
 	MOVQ	$runtime·g0(SB), DI
 	LEAQ	(-64*1024+104)(SP), BX // 栈字节大小限制??
 	MOVQ	BX, g_stackguard0(DI) // 设置 runtime.g0.stackguard0
@@ -131,14 +131,14 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	JNE	notintel // 若非intel处理器, 跳转到notintel
 	CMPL	CX, $0x6C65746E  // "ntel"
 	JNE	notintel // 若非intel处理器, 跳转到notintel
-	MOVB	$1, runtime·isIntel(SB) // 设置 runtime.isIntel -> true
-	MOVB	$1, runtime·lfenceBeforeRdtsc(SB) // 设置 runtime.lfenceBeforeRdtsc -> true
+	MOVB	$1, runtime·isIntel(SB) // 设置 runtime.isIntel(runtime/runtime2.go) -> true
+	MOVB	$1, runtime·lfenceBeforeRdtsc(SB) // 设置 runtime.lfenceBeforeRdtsc(runtime/runtime2.go) -> true
 notintel:
 
 	// Load EAX=1 cpuid flags
 	MOVL	$1, AX
 	CPUID // EAX=1, 获取处理器基本信息和扩展信息, EAX(级别, 型号, 步长), ECX(扩展信息), EBX(保留), EDX(特征信息)
-	MOVL	AX, runtime·processorVersionInfo(SB) // 设置 runtime.processorVersionInfo -> CPU基本信息
+	MOVL	AX, runtime·processorVersionInfo(SB) // 设置 runtime.processorVersionInfo(runtime/runtime2.go) -> CPU基本信息
 
 nocpuinfo:
 	// if there is an _cgo_init, call it.
@@ -206,7 +206,9 @@ needtls:
 ok:
 	// set the per-goroutine and per-mach "registers"
 	get_tls(BX)
-	LEAQ	runtime·g0(SB), CX
+
+    // 初始化runtime.m0
+	LEAQ	runtime·g0(SB), CX // 获取runtime.g0地址到CX
 	MOVQ	CX, g(BX)
 	LEAQ	runtime·m0(SB), AX
 
