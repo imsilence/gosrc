@@ -93,9 +93,9 @@ TEXT runtime·rt0_go<ABIInternal>(SB),NOSPLIT,$0
 	MOVQ	DI, AX		// argc // 备份RDI寄存器值到RAX寄存器
 	MOVQ	SI, BX		// argv // 备份RSI寄存器值到RBX寄存器
 	SUBQ	$(4*8+7), SP		// 2args 2auto // 栈顶地址增长39字节
-	ANDQ	$~15, SP
-	MOVQ	AX, 16(SP)
-	MOVQ	BX, 24(SP)
+	ANDQ	$~15, SP // 对栈顶地址进行16字节地址对齐(后四位为0000)
+	MOVQ	AX, 16(SP) // 将RAX寄存器中值写入内存16(SP)~23(SP)
+	MOVQ	BX, 24(SP) // 将RBX寄存器中值写入内存24(SP)-31(SP)
 
 	// create istack out of the given (operating system) stack.
 	// _cgo_init may update stackguard.
