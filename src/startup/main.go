@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"os"
 )
 
 func main() {
-	fmt.Printf("Hello World")
+	fmt.Println(os.Args)
+	fmt.Println("Hello World")
 }

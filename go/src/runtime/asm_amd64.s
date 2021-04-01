@@ -11,10 +11,11 @@
 // internal linking. This is the entry point for the program from the
 // kernel for an ordinary -buildmode=exe program. The stack holds the
 // number of arguments and the C-style argv.
-TEXT _rt0_amd64(SB),NOSPLIT,$-8
-	MOVQ	0(SP), DI	// argc
-	LEAQ	8(SP), SI	// argv
-	JMP	runtime·rt0_go(SB)
+// 函数_rt0_amd64, 处理命令行参数
+TEXT _rt0_amd64(SB),NOSPLIT,$-8 // 申请8字节栈空间
+	MOVQ	0(SP), DI	// argc // 取内存中值存入RDI寄存器(命令行参数数量)
+	LEAQ	8(SP), SI	// argv // 取内存地址存入RSI寄存器, SP指向栈顶(即RSP寄存器中存储的栈顶地址), 将栈顶地址+8存入RSI寄存器(TODO: 含义???)
+	JMP	runtime·rt0_go(SB) // 跳转到函数runtime·rt0_go
 
 // main is common startup code for most amd64 systems when using
 // external linking. The C startup code will call the symbol "main"
@@ -86,11 +87,12 @@ GLOBL _rt0_amd64_lib_argv<>(SB),NOPTR, $8
 
 // Defined as ABIInternal since it does not use the stack-based Go ABI (and
 // in addition there are no calls to this entry point from Go code).
+// 函数runtime·rt0_go
 TEXT runtime·rt0_go<ABIInternal>(SB),NOSPLIT,$0
 	// copy arguments forward on an even stack
-	MOVQ	DI, AX		// argc
-	MOVQ	SI, BX		// argv
-	SUBQ	$(4*8+7), SP		// 2args 2auto
+	MOVQ	DI, AX		// argc // 备份RDI寄存器值到RAX寄存器
+	MOVQ	SI, BX		// argv // 备份RSI寄存器值到RBX寄存器
+	SUBQ	$(4*8+7), SP		// 2args 2auto // 栈顶地址增长39字节
 	ANDQ	$~15, SP
 	MOVQ	AX, 16(SP)
 	MOVQ	BX, 24(SP)
