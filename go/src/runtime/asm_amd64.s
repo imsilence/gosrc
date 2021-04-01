@@ -99,36 +99,49 @@ TEXT runtime·rt0_go<ABIInternal>(SB),NOSPLIT,$0
 
 	// create istack out of the given (operating system) stack.
 	// _cgo_init may update stackguard.
-	MOVQ	$runtime·g0(SB), DI
-	LEAQ	(-64*1024+104)(SP), BX
-	MOVQ	BX, g_stackguard0(DI)
+	MOVQ	$runtime·g0(SB), DI // 将runtime.g0(proc.go)地址写入RDI寄存器
+	LEAQ	(-64*1024+104)(SP), BX // 将栈顶地址-64*1024+104(约64KB)字节并写入寄存器RBX
+	MOVQ	BX, g_stackguard0(DI) // 将RBX数据写入到runtime.g0.stackguard0和runtime.g0.stackguard1中
 	MOVQ	BX, g_stackguard1(DI)
-	MOVQ	BX, (g_stack+stack_lo)(DI)
+	MOVQ	BX, (g_stack+stack_lo)(DI) // 将RBX与RSP数据写入到runtime.stack中()
 	MOVQ	SP, (g_stack+stack_hi)(DI)
 
 	// find out information about the processor we're on
-	MOVL	$0, AX
-	CPUID
-	MOVL	AX, SI
-	CMPL	AX, $0
-	JE	nocpuinfo
+	MOVL	$0, AX  // 对RAX寄存器进行清零, 使用EAX传递参数给CPUID指令, EAX=0用于获取CPU Vendor ID信息
+	CPUID // 执行CPUID指令获取CPU Vendor ID信息, Vender ID信息写入EBX, ECX, EDX寄存器
+	MOVL	AX, SI // 备份RAX寄存器数据到RSI寄存器
+	CMPL	AX, $0 // 比较RAX寄存器值是否为0
+	JE	nocpuinfo // RAX寄存器值为0则未获取CPU信息
 
 	// Figure out how to serialize RDTSC.
 	// On Intel processors LFENCE is enough. AMD requires MFENCE.
 	// Don't know about the rest, so let's do MFENCE.
-	CMPL	BX, $0x756E6547  // "Genu"
-	JNE	notintel
-	CMPL	DX, $0x49656E69  // "ineI"
-	JNE	notintel
-	CMPL	CX, $0x6C65746E  // "ntel"
-	JNE	notintel
-	MOVB	$1, runtime·isIntel(SB)
-	MOVB	$1, runtime·lfenceBeforeRdtsc(SB)
+    /* 判断是否为Intel处理器(GenuineIntel)
+    小端模式
+    0x75=>u, 0x6e=>n, 0x65=>e, 0x47=>G
+    0x756e6547=>Genu
+    0x49=>I, 0x65=>e, 0x6e=>n, 0x69=>i
+    0x49656E69=>ineI
+    0x6c=>l, 0x65=>e, 0x74=t>, 0x6e=>n
+    0x6C65746E=>ntel
+    */
+	CMPL	BX, $0x756E6547  // 与 "Genu" 比较
+	JNE	notintel // 不等为非Intel
+
+	CMPL	DX, $0x49656E69  // 与 "ineI" 比较
+	JNE	notintel // 不等为非Intel
+
+	CMPL	CX, $0x6C65746E  // 与 "ntel" 比较
+	JNE	notintel // 不等为非Intel
+
+    // Intel CPU
+	MOVB	$1, runtime·isIntel(SB) // 设置runtime.isIntel为true
+	MOVB	$1, runtime·lfenceBeforeRdtsc(SB) // 设置runtime.lfenceBeforeRdtsc为true
 notintel:
 
 	// Load EAX=1 cpuid flags
-	MOVL	$1, AX
-	CPUID
+	MOVL	$1, AX // 对RAX寄存器设置为1, 使用EAX传递参数给CPUID指令, EAX=1用于获取CPU签名及扩展信息
+	CPUID // 执行CPUID获取CPU签名信息, 签名结果写入EAX寄存器
 	MOVL	AX, runtime·processorVersionInfo(SB)
 
 nocpuinfo:
