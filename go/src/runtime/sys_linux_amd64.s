@@ -655,19 +655,21 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	RET
 
 // set tls base to DI
-TEXT runtime·settls(SB),NOSPLIT,$32
+// 函数runtime.settls
+TEXT runtime·settls(SB),NOSPLIT,$32 // 栈空间32字节
 #ifdef GOOS_android
 	// Android stores the TLS offset in runtime·tls_g.
 	SUBQ	runtime·tls_g(SB), DI
 #else
 	ADDQ	$8, DI	// ELF wants to use -8(FS)
 #endif
-	MOVQ	DI, SI
-	MOVQ	$0x1002, DI	// ARCH_SET_FS
-	MOVQ	$SYS_arch_prctl, AX
-	SYSCALL
-	CMPQ	AX, $0xfffffffffffff001
-	JLS	2(PC)
+    // 系统调用,  将系统调用号写入RAX寄存器, 参数依次写入到RDI,RSI,RDX,R10,R8和R9中
+	MOVQ	DI, SI // 函数地址写入到RSI寄存器
+	MOVQ	$0x1002, DI	// ARCH_SET_FS // 设置FS 64位基址寄存器
+	MOVQ	$SYS_arch_prctl, AX // 系统调用号(158)
+	SYSCALL // 将地址写入到FS 64位基址寄存器(Fs_base)
+	CMPQ	AX, $0xfffffffffffff001 // 比较系统调用结果 AX <= $0xfffffffffffff001
+	JLS	2(PC) // 向后跳转2个指令地址
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 

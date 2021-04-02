@@ -146,9 +146,9 @@ notintel:
 
 nocpuinfo:
 	// if there is an _cgo_init, call it.
-	MOVQ	_cgo_init(SB), AX
-	TESTQ	AX, AX
-	JZ	needtls
+	MOVQ	_cgo_init(SB), AX // 验证runtime._cgo_init(定义于cgo.go)是否被赋值
+	TESTQ	AX, AX // AX寄存器值按位取与操作并设置标志寄存器
+	JZ	needtls // ZF(零)标志位设置为1则跳转到needtls位置
 	// arg 1: g0, already in DI
 	MOVQ	$setg_gcc<>(SB), SI // arg 2: setg_gcc
 #ifdef GOOS_android
@@ -201,8 +201,8 @@ needtls:
 	JMP ok
 #endif
 
-	LEAQ	runtime·m0+m_tls(SB), DI
-	CALL	runtime·settls(SB)
+	LEAQ	runtime·m0+m_tls(SB), DI // 获取runtime.m0.tls地址写入RDI寄存器
+	CALL	runtime·settls(SB) // 调用runtime.settls函数
 
 	// store through it, to make sure it works
 	get_tls(BX)
